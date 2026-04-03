@@ -397,7 +397,7 @@
   async function tarkistaTila() {
     const nyt = new Date();
     const tanaan = nyt.toISOString().split('T')[0];
-    const { data } = await supabase
+    const { data } = await sb
       .from('kirjaukset')
       .select('*')
       .eq('user_id', currentUser.id)
@@ -474,10 +474,32 @@
     }
   }
 
+  function laskeAikaTöissä(kirjaukset) {
+    var yhteensaMs = 0;
+    var sisaanAika = null;
+    var jarjestetty = kirjaukset.slice().reverse();
+    for(var i = 0; i < jarjestetty.length; i++) {
+      var k = jarjestetty[i];
+      if(k.tyyppi === 'in') {
+        sisaanAika = new Date(k.aika);
+      } else if(k.tyyppi === 'out' && sisaanAika) {
+        yhteensaMs += new Date(k.aika) - sisaanAika;
+        sisaanAika = null;
+      }
+    }
+    if(sisaanAika) {
+      yhteensaMs += new Date() - sisaanAika;
+    }
+    var kokoMin = Math.floor(yhteensaMs / 60000);
+    var tunnit = Math.floor(kokoMin / 60);
+    var minuutit = kokoMin % 60;
+    return tunnit + 't ' + String(minuutit).padStart(2,'0') + 'min';
+  }
+
   async function lataaKirjaukset() {
     const nyt = new Date();
     const tanaan = nyt.toISOString().split('T')[0];
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from('kirjaukset')
       .select('*')
       .eq('user_id', currentUser.id)
@@ -485,11 +507,23 @@
       .order('aika', { ascending: false });
 
     const el = document.getElementById('log-list');
+    if(error) {
+      el.innerHTML = '<div class="log-empty">Virhe ladattaessa: '+error.message+'</div>';
+      return;
+    }
     if(!data || data.length === 0) {
       el.innerHTML = '<div class="log-empty">Ei kirjauksia tänään</div>';
       return;
     }
-    el.innerHTML = data.map(function(k) {
+
+    var aikaTöissä = laskeAikaTöissä(data);
+
+    var html = '<div style="background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,0.06);">'
+      + '<span style="font-size:13px;color:#8e8e93;font-weight:600;">AIKA TÖISSÄ TÄNÄÄN</span>'
+      + '<span style="font-size:15px;font-weight:600;color:#007aff;">'+aikaTöissä+'</span>'
+      + '</div>';
+
+    html += data.map(function(k) {
       const aika = new Date(k.aika);
       const h = String(aika.getHours()).padStart(2,'0');
       const m = String(aika.getMinutes()).padStart(2,'0');
@@ -498,6 +532,8 @@
       const badge = k.tyyppi === 'in' ? 'badge-in' : 'badge-out';
       return '<div class="log-item"><div><div class="log-time">'+h+':'+m+':'+s+'</div></div><span class="log-badge '+badge+'">'+tyyppi+'</span></div>';
     }).join('');
+
+    el.innerHTML = html;
   }
 
   // --- Auth tila ---

@@ -274,6 +274,20 @@
   </div>
 </div>
 
+<!-- Salasana modal -->
+<div id="salasana-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:100;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:16px;padding:24px;width:100%;max-width:380px;">
+    <div style="font-size:17px;font-weight:600;margin-bottom:16px;">Vaihda salasana</div>
+    <div class="field-label">Uusi salasana</div>
+    <input class="field-input" type="password" id="modal-password" placeholder="Vähintään 6 merkkiä">
+    <div class="field-label">Toista salasana</div>
+    <input class="field-input" type="password" id="modal-password2" placeholder="Toista salasana">
+    <div id="modal-virhe" style="color:#cc0000;font-size:13px;margin-bottom:12px;display:none;"></div>
+    <button class="btn-primary" onclick="vaihdaSalasana()">Vaihda salasana</button>
+    <button class="btn-secondary" style="margin-top:8px;" onclick="suljeModal()">Peruuta</button>
+  </div>
+</div>
+
 <!-- App screen -->
 <div class="screen" id="screen-app">
   <div class="header">
@@ -281,7 +295,10 @@
       <div class="header-title">Työajanseuranta</div>
       <div class="header-user" id="header-user"></div>
     </div>
-    <button class="logout-btn" onclick="kirjauduUlos()">Kirjaudu ulos</button>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+      <button class="logout-btn" onclick="kirjauduUlos()">Kirjaudu ulos</button>
+      <button class="logout-btn" style="color:#8e8e93;font-size:12px;" onclick="naytaVaihdaSalasana()">Vaihda salasana</button>
+    </div>
   </div>
 
   <div class="app-body">
@@ -384,6 +401,31 @@
     const { error } = await sb.auth.resetPasswordForEmail(email);
     if(error) naytaVirhe('Virhe: '+error.message);
     else naytaVirhe('Nollauslinkki lähetetty sähköpostiisi!');
+  }
+
+  function naytaVaihdaSalasana() {
+    var modal = document.getElementById('salasana-modal');
+    modal.style.display = 'flex';
+    document.getElementById('modal-password').value = '';
+    document.getElementById('modal-password2').value = '';
+    document.getElementById('modal-virhe').style.display = 'none';
+  }
+
+  function suljeModal() {
+    document.getElementById('salasana-modal').style.display = 'none';
+  }
+
+  async function vaihdaSalasana() {
+    var virheEl = document.getElementById('modal-virhe');
+    var salasana = document.getElementById('modal-password').value;
+    var salasana2 = document.getElementById('modal-password2').value;
+    virheEl.style.display = 'none';
+    if(!salasana || !salasana2) { virheEl.textContent = 'Täytä molemmat kentät'; virheEl.style.display = 'block'; return; }
+    if(salasana.length < 6) { virheEl.textContent = 'Salasanan pitää olla vähintään 6 merkkiä'; virheEl.style.display = 'block'; return; }
+    if(salasana !== salasana2) { virheEl.textContent = 'Salasanat eivät täsmää'; virheEl.style.display = 'block'; return; }
+    const { error } = await sb.auth.updateUser({ password: salasana });
+    if(error) { virheEl.textContent = 'Virhe: '+error.message; virheEl.style.display = 'block'; }
+    else { suljeModal(); alert('Salasana vaihdettu!'); }
   }
 
   async function kirjauduUlos() {

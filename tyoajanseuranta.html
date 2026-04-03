@@ -260,6 +260,16 @@
         <button class="btn-primary" onclick="nollaaSalasana()">Lähetä nollauslinkki</button>
         <button class="btn-secondary" onclick="naytaKirjautuminen()">Takaisin</button>
       </div>
+
+      <!-- Uusi salasana form -->
+      <div id="form-uusi-salasana" style="display:none;">
+        <div style="font-size:15px;font-weight:600;color:#000;margin-bottom:16px;">Aseta uusi salasana</div>
+        <div class="field-label">Uusi salasana</div>
+        <input class="field-input" type="password" id="new-password" placeholder="Vähintään 6 merkkiä">
+        <div class="field-label">Toista salasana</div>
+        <input class="field-input" type="password" id="new-password2" placeholder="Toista salasana">
+        <button class="btn-primary" onclick="asetaUusiSalasana()">Aseta salasana</button>
+      </div>
     </div>
   </div>
 </div>
@@ -536,8 +546,32 @@
     el.innerHTML = html;
   }
 
+  async function asetaUusiSalasana() {
+    piilotaVirhe();
+    const salasana = document.getElementById('new-password').value;
+    const salasana2 = document.getElementById('new-password2').value;
+    if(!salasana || !salasana2) { naytaVirhe('Täytä molemmat kentät'); return; }
+    if(salasana.length < 6) { naytaVirhe('Salasanan pitää olla vähintään 6 merkkiä'); return; }
+    if(salasana !== salasana2) { naytaVirhe('Salasanat eivät täsmää'); return; }
+    const { error } = await sb.auth.updateUser({ password: salasana });
+    if(error) naytaVirhe('Virhe: '+error.message);
+    else {
+      naytaVirhe('Salasana vaihdettu! Kirjaudutaan sisään...');
+      setTimeout(function(){ naytaKirjautuminen(); }, 1500);
+    }
+  }
+
   // --- Auth tila ---
   sb.auth.onAuthStateChange(function(event, session) {
+    if(event === 'PASSWORD_RECOVERY') {
+      document.getElementById('screen-login').classList.add('active');
+      document.getElementById('screen-app').classList.remove('active');
+      document.getElementById('form-login').style.display = 'none';
+      document.getElementById('form-rekisterointi').style.display = 'none';
+      document.getElementById('form-reset').style.display = 'none';
+      document.getElementById('form-uusi-salasana').style.display = 'block';
+      return;
+    }
     if(session) {
       naytaSovellus(session.user);
     } else {

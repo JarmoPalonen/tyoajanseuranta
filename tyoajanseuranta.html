@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Työaika">
+  <title>Työajanseuranta</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f2f2f7;
+      min-height: 100vh;
+      max-width: 430px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      background: #fff;
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid #e5e5ea;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .header-title { font-size: 17px; font-weight: 600; color: #000; }
+    .header-user { font-size: 13px; color: #8e8e93; }
+    .logout-btn {
+      font-size: 14px; color: #007aff; background: none;
+      border: none; cursor: pointer; padding: 4px 0;
+    }
+
+    /* Screens */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* Login */
+    .login-wrap {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+    }
+    .login-logo {
+      width: 72px; height: 72px;
+      background: #007aff;
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 24px;
+    }
+    .login-logo svg { width: 36px; height: 36px; fill: white; }
+    .login-title { font-size: 26px; font-weight: 700; color: #000; margin-bottom: 6px; text-align: center; }
+    .login-sub { font-size: 15px; color: #8e8e93; margin-bottom: 36px; text-align: center; }
+    .login-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .field-label { font-size: 13px; font-weight: 500; color: #8e8e93; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .field-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #e5e5ea;
+      border-radius: 10px;
+      font-size: 16px;
+      color: #000;
+      background: #f2f2f7;
+      margin-bottom: 16px;
+      outline: none;
+    }
+    .field-input:focus { border-color: #007aff; background: #fff; }
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: #007aff;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .btn-primary:active { opacity: 0.8; }
+    .btn-secondary {
+      width: 100%;
+      padding: 14px;
+      background: #f2f2f7;
+      color: #007aff;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .error-msg {
+      background: #fff2f2;
+      border: 1px solid #ffcccc;
+      color: #cc0000;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .toggle-link {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 14px;
+      color: #8e8e93;
+    }
+    .toggle-link span { color: #007aff; cursor: pointer; }
+
+    /* App */
+    .app-body { padding: 16px; }
+
+    .status-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px 20px;
+      text-align: center;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      color: #8e8e93;
+      margin-bottom: 12px;
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .dot-out { background: #8e8e93; }
+    .dot-in { background: #34c759; }
+    .clock-time {
+      font-size: 48px;
+      font-weight: 200;
+      color: #000;
+      letter-spacing: -2px;
+      margin-bottom: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .clock-date { font-size: 14px; color: #8e8e93; margin-bottom: 24px; }
+
+    .checkin-btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.1s;
+    }
+    .checkin-btn:active { opacity: 0.7; }
+    .btn-töihin { background: #34c759; color: #fff; }
+    .btn-kotiin { background: #ff3b30; color: #fff; }
+    .btn-loading { background: #e5e5ea; color: #8e8e93; }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #8e8e93;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 20px 0 8px;
+    }
+
+    .log-list { display: flex; flex-direction: column; gap: 8px; }
+    .log-item {
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .log-time { font-size: 15px; font-weight: 500; color: #000; }
+    .log-sub { font-size: 13px; color: #8e8e93; margin-top: 2px; }
+    .log-badge {
+      font-size: 13px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .badge-in { background: #d1f2da; color: #1a7a33; }
+    .badge-out { background: #ffd6d4; color: #c0392b; }
+    .log-empty {
+      background: #fff;
+      border-radius: 12px;
+      padding: 32px 16px;
+      text-align: center;
+      color: #8e8e93;
+      font-size: 15px;
+    }
+
+    .since-text {
+      font-size: 13px;
+      color: #34c759;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Login screen -->
+<div class="screen active" id="screen-login">
+  <div class="login-wrap">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+    </div>
+    <div class="login-title">Työajanseuranta</div>
+    <div class="login-sub">Kirjaudu sisään jatkaaksesi</div>
+
+    <div class="login-card">
+      <div class="error-msg" id="login-error"></div>
+
+      <!-- Login form -->
+      <div id="form-login">
+        <div class="field-label">Sähköposti</div>
+        <input class="field-input" type="email" id="login-email" placeholder="nimi@yritys.fi" autocomplete="email">
+        <div class="field-label">Salasana</div>
+        <input class="field-input" type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+        <button class="btn-primary" onclick="kirjauduSisaan()">Kirjaudu sisään</button>
+        <button class="btn-secondary" onclick="naytaRekisterointi()">Luo uusi tili</button>
+        <div class="toggle-link">Unohditko salasanan? <span onclick="naytaReset()">Nollaa</span></div>
+      </div>
+
+      <!-- Register form -->
+      <div id="form-rekisterointi" style="display:none;">
+        <div class="field-label">Nimi</div>
+        <input class="field-input" type="text" id="reg-nimi" placeholder="Etunimi Sukunimi">
+        <div class="field-label">Sähköposti</div>
+        <input class="field-input" type="email" id="reg-email" placeholder="nimi@yritys.fi">
+        <div class="field-label">Salasana</div>
+        <input class="field-input" type="password" id="reg-password" placeholder="Vähintään 6 merkkiä">
+        <button class="btn-primary" onclick="rekisteroidy()">Luo tili</button>
+        <button class="btn-secondary" onclick="naytaKirjautuminen()">Takaisin</button>
+      </div>
+
+      <!-- Reset form -->
+      <div id="form-reset" style="display:none;">
+        <div class="field-label">Sähköposti</div>
+        <input class="field-input" type="email" id="reset-email" placeholder="nimi@yritys.fi">
+        <button class="btn-primary" onclick="nollaaSalasana()">Lähetä nollauslinkki</button>
+        <button class="btn-secondary" onclick="naytaKirjautuminen()">Takaisin</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- App screen -->
+<div class="screen" id="screen-app">
+  <div class="header">
+    <div>
+      <div class="header-title">Työajanseuranta</div>
+      <div class="header-user" id="header-user"></div>
+    </div>
+    <button class="logout-btn" onclick="kirjauduUlos()">Kirjaudu ulos</button>
+  </div>
+
+  <div class="app-body">
+    <div class="status-card">
+      <div class="status-indicator">
+        <div class="dot dot-out" id="status-dot"></div>
+        <span id="status-text">Ei töissä</span>
+      </div>
+      <div class="clock-time" id="clock">00:00:00</div>
+      <div class="clock-date" id="date-text"></div>
+      <div class="since-text" id="since-text"></div>
+      <br>
+      <button class="checkin-btn btn-töihin" id="main-btn" onclick="toggleKirjaus()">
+        Kirjaudu töihin
+      </button>
+    </div>
+
+    <div class="section-title">Kirjaukset tänään</div>
+    <div class="log-list" id="log-list">
+      <div class="log-empty">Ladataan...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://bscpwalprxunsslppoun.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_YOnrHIKrdJCYzWrZ4luddg_3Aqo4qQr';
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let currentUser = null;
+  let isTöissä = false;
+  let clockInterval = null;
+
+  // --- Kello ---
+  function paivitaKello() {
+    const nyt = new Date();
+    const h = String(nyt.getHours()).padStart(2,'0');
+    const m = String(nyt.getMinutes()).padStart(2,'0');
+    const s = String(nyt.getSeconds()).padStart(2,'0');
+    document.getElementById('clock').textContent = h+':'+m+':'+s;
+    const paivat = ['sunnuntai','maanantai','tiistai','keskiviikko','torstai','perjantai','lauantai'];
+    const kuukaudet = ['tammikuuta','helmikuuta','maaliskuuta','huhtikuuta','toukokuuta','kesäkuuta','heinäkuuta','elokuuta','syyskuuta','lokakuuta','marraskuuta','joulukuuta'];
+    document.getElementById('date-text').textContent = paivat[nyt.getDay()]+' '+nyt.getDate()+'. '+kuukaudet[nyt.getMonth()]+' '+nyt.getFullYear();
+  }
+
+  // --- Kirjautuminen ---
+  function naytaVirhe(msg) {
+    const el = document.getElementById('login-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function piilotaVirhe() {
+    document.getElementById('login-error').style.display = 'none';
+  }
+
+  function naytaRekisterointi() {
+    piilotaVirhe();
+    document.getElementById('form-login').style.display = 'none';
+    document.getElementById('form-rekisterointi').style.display = 'block';
+    document.getElementById('form-reset').style.display = 'none';
+  }
+  function naytaKirjautuminen() {
+    piilotaVirhe();
+    document.getElementById('form-login').style.display = 'block';
+    document.getElementById('form-rekisterointi').style.display = 'none';
+    document.getElementById('form-reset').style.display = 'none';
+  }
+  function naytaReset() {
+    piilotaVirhe();
+    document.getElementById('form-login').style.display = 'none';
+    document.getElementById('form-rekisterointi').style.display = 'none';
+    document.getElementById('form-reset').style.display = 'block';
+  }
+
+  async function kirjauduSisaan() {
+    piilotaVirhe();
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    if(!email || !password) { naytaVirhe('Täytä kaikki kentät'); return; }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if(error) naytaVirhe('Virhe: '+error.message);
+  }
+
+  async function rekisteroidy() {
+    piilotaVirhe();
+    const nimi = document.getElementById('reg-nimi').value;
+    const email = document.getElementById('reg-email').value;
+    const password = document.getElementById('reg-password').value;
+    if(!nimi || !email || !password) { naytaVirhe('Täytä kaikki kentät'); return; }
+    if(password.length < 6) { naytaVirhe('Salasanan pitää olla vähintään 6 merkkiä'); return; }
+    const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: nimi } } });
+    if(error) naytaVirhe('Virhe: '+error.message);
+    else { naytaVirhe('Tili luotu! Voit kirjautua sisään.'); naytaKirjautuminen(); }
+  }
+
+  async function nollaaSalasana() {
+    piilotaVirhe();
+    const email = document.getElementById('reset-email').value;
+    if(!email) { naytaVirhe('Syötä sähköpostiosoite'); return; }
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if(error) naytaVirhe('Virhe: '+error.message);
+    else naytaVirhe('Nollauslinkki lähetetty sähköpostiisi!');
+  }
+
+  async function kirjauduUlos() {
+    await supabase.auth.signOut();
+  }
+
+  // --- App logiikka ---
+  async function naytaSovellus(user) {
+    currentUser = user;
+    document.getElementById('screen-login').classList.remove('active');
+    document.getElementById('screen-app').classList.add('active');
+    const nimi = user.user_metadata?.full_name || user.email;
+    document.getElementById('header-user').textContent = nimi;
+    if(clockInterval) clearInterval(clockInterval);
+    paivitaKello();
+    clockInterval = setInterval(paivitaKello, 1000);
+    await tarkistaTila();
+    await lataaKirjaukset();
+  }
+
+  async function tarkistaTila() {
+    const nyt = new Date();
+    const tanaan = nyt.toISOString().split('T')[0];
+    const { data } = await supabase
+      .from('kirjaukset')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .gte('aika', tanaan+'T00:00:00')
+      .order('aika', { ascending: false })
+      .limit(1);
+
+    if(data && data.length > 0 && data[0].tyyppi === 'in') {
+      isTöissä = true;
+      const aika = new Date(data[0].aika);
+      const h = String(aika.getHours()).padStart(2,'0');
+      const m = String(aika.getMinutes()).padStart(2,'0');
+      document.getElementById('since-text').textContent = 'Töissä seit ' + h+':'+m;
+    } else {
+      isTöissä = false;
+      document.getElementById('since-text').textContent = '';
+    }
+    paivitaNappi();
+  }
+
+  function paivitaNappi() {
+    const dot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const btn = document.getElementById('main-btn');
+    if(isTöissä) {
+      dot.className = 'dot dot-in';
+      statusText.textContent = 'Töissä';
+      btn.textContent = 'Kirjaudu ulos';
+      btn.className = 'checkin-btn btn-kotiin';
+    } else {
+      dot.className = 'dot dot-out';
+      statusText.textContent = 'Ei töissä';
+      btn.textContent = 'Kirjaudu töihin';
+      btn.className = 'checkin-btn btn-töihin';
+    }
+  }
+
+  async function toggleKirjaus() {
+    const btn = document.getElementById('main-btn');
+    btn.className = 'checkin-btn btn-loading';
+    btn.textContent = 'Tallennetaan...';
+
+    const nimi = currentUser.user_metadata?.full_name || currentUser.email;
+    const tyyppi = isTöissä ? 'out' : 'in';
+
+    const { error } = await supabase.from('kirjaukset').insert({
+      user_id: currentUser.id,
+      nimi: nimi,
+      email: currentUser.email,
+      tyyppi: tyyppi
+    });
+
+    if(error) {
+      alert('Virhe tallennuksessa: '+error.message);
+    } else {
+      isTöissä = !isTöissä;
+      if(isTöissä) {
+        const nyt = new Date();
+        const h = String(nyt.getHours()).padStart(2,'0');
+        const m = String(nyt.getMinutes()).padStart(2,'0');
+        document.getElementById('since-text').textContent = 'Töissä seit ' + h+':'+m;
+      } else {
+        document.getElementById('since-text').textContent = '';
+      }
+      await lataaKirjaukset();
+    }
+    paivitaNappi();
+  }
+
+  async function lataaKirjaukset() {
+    const nyt = new Date();
+    const tanaan = nyt.toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('kirjaukset')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .gte('aika', tanaan+'T00:00:00')
+      .order('aika', { ascending: false });
+
+    const el = document.getElementById('log-list');
+    if(!data || data.length === 0) {
+      el.innerHTML = '<div class="log-empty">Ei kirjauksia tänään</div>';
+      return;
+    }
+    el.innerHTML = data.map(function(k) {
+      const aika = new Date(k.aika);
+      const h = String(aika.getHours()).padStart(2,'0');
+      const m = String(aika.getMinutes()).padStart(2,'0');
+      const s = String(aika.getSeconds()).padStart(2,'0');
+      const tyyppi = k.tyyppi === 'in' ? 'Töihin' : 'Kotiin';
+      const badge = k.tyyppi === 'in' ? 'badge-in' : 'badge-out';
+      return '<div class="log-item"><div><div class="log-time">'+h+':'+m+':'+s+'</div></div><span class="log-badge '+badge+'">'+tyyppi+'</span></div>';
+    }).join('');
+  }
+
+  // --- Auth tila ---
+  supabase.auth.onAuthStateChange(function(event, session) {
+    if(session) {
+      naytaSovellus(session.user);
+    } else {
+      currentUser = null;
+      isTöissä = false;
+      if(clockInterval) { clearInterval(clockInterval); clockInterval = null; }
+      document.getElementById('screen-app').classList.remove('active');
+      document.getElementById('screen-login').classList.add('active');
+      naytaKirjautuminen();
+    }
+  });
+</script>
+</body>
+</html>

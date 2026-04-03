@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Työajanseuranta — Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f2f2f7; min-height: 100vh; }
+
+    .header {
+      background: #fff; padding: 16px 24px;
+      border-bottom: 1px solid #e5e5ea;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .header-title { font-size: 20px; font-weight: 700; color: #000; }
+    .header-sub { font-size: 13px; color: #8e8e93; margin-top: 2px; }
+    .logout-btn {
+      font-size: 14px; color: #007aff; background: none;
+      border: none; cursor: pointer; padding: 8px 16px;
+      border: 1px solid #007aff; border-radius: 8px;
+    }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* Login */
+    .login-wrap {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 40px 24px;
+    }
+    .login-logo {
+      width: 72px; height: 72px; background: #ff9500;
+      border-radius: 18px; display: flex; align-items: center;
+      justify-content: center; margin-bottom: 24px; font-size: 32px;
+    }
+    .login-title { font-size: 26px; font-weight: 700; color: #000; margin-bottom: 6px; }
+    .login-sub { font-size: 15px; color: #8e8e93; margin-bottom: 36px; }
+    .login-card {
+      background: #fff; border-radius: 16px; padding: 24px;
+      width: 100%; max-width: 380px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .field-label { font-size: 13px; font-weight: 500; color: #8e8e93; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .field-input {
+      width: 100%; padding: 12px 14px; border: 1px solid #e5e5ea;
+      border-radius: 10px; font-size: 16px; color: #000;
+      background: #f2f2f7; margin-bottom: 16px; outline: none;
+    }
+    .field-input:focus { border-color: #007aff; background: #fff; }
+    .btn-primary {
+      width: 100%; padding: 14px; background: #ff9500; color: #fff;
+      border: none; border-radius: 12px; font-size: 16px;
+      font-weight: 600; cursor: pointer;
+    }
+    .btn-primary:active { opacity: 0.8; }
+    .error-msg {
+      background: #fff2f2; border: 1px solid #ffcccc; color: #cc0000;
+      padding: 10px 14px; border-radius: 10px; font-size: 14px;
+      margin-bottom: 16px; display: none;
+    }
+
+    /* App */
+    .app-body { padding: 24px; max-width: 900px; margin: 0 auto; }
+
+    .controls {
+      display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; align-items: center;
+    }
+    .month-select {
+      padding: 10px 14px; border: 1px solid #e5e5ea; border-radius: 10px;
+      font-size: 15px; background: #fff; color: #000; outline: none; cursor: pointer;
+    }
+    .btn-export {
+      padding: 10px 20px; background: #34c759; color: #fff;
+      border: none; border-radius: 10px; font-size: 14px;
+      font-weight: 600; cursor: pointer; margin-left: auto;
+    }
+
+    .summary-cards {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px; margin-bottom: 24px;
+    }
+    .summary-card {
+      background: #fff; border-radius: 14px; padding: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .summary-label { font-size: 12px; color: #8e8e93; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .summary-value { font-size: 24px; font-weight: 700; color: #000; }
+    .summary-sub { font-size: 12px; color: #8e8e93; margin-top: 2px; }
+
+    .section-title {
+      font-size: 13px; font-weight: 600; color: #8e8e93;
+      text-transform: uppercase; letter-spacing: 0.5px; margin: 24px 0 12px;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    .table-card { background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 24px; }
+    th {
+      padding: 12px 16px; text-align: left; font-size: 12px;
+      font-weight: 600; color: #8e8e93; text-transform: uppercase;
+      letter-spacing: 0.5px; border-bottom: 1px solid #f2f2f7; background: #fafafa;
+    }
+    td { padding: 12px 16px; font-size: 14px; color: #000; border-bottom: 1px solid #f2f2f7; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9f9f9; }
+    .badge {
+      font-size: 12px; font-weight: 500; padding: 3px 8px;
+      border-radius: 20px; display: inline-block;
+    }
+    .badge-in { background: #d1f2da; color: #1a7a33; }
+    .badge-out { background: #ffd6d4; color: #c0392b; }
+    .hours-cell { font-weight: 600; color: #007aff; }
+    .loading { text-align: center; padding: 40px; color: #8e8e93; font-size: 15px; }
+    .employee-header {
+      background: #f2f2f7; padding: 12px 16px;
+      font-size: 15px; font-weight: 600; color: #000;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .employee-total { font-size: 14px; color: #007aff; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="screen active" id="screen-login">
+  <div class="login-wrap">
+    <div class="login-logo">👔</div>
+    <div class="login-title">Admin-näkymä</div>
+    <div class="login-sub">Työajanseuranta</div>
+    <div class="login-card">
+      <div class="error-msg" id="login-error"></div>
+      <div class="field-label">Sähköposti</div>
+      <input class="field-input" type="email" id="login-email" placeholder="admin@yritys.fi">
+      <div class="field-label">Salasana</div>
+      <input class="field-input" type="password" id="login-password" placeholder="••••••••">
+      <button class="btn-primary" onclick="kirjauduSisaan()">Kirjaudu admin-näkymään</button>
+    </div>
+  </div>
+</div>
+
+<!-- App -->
+<div class="screen" id="screen-app">
+  <div class="header">
+    <div>
+      <div class="header-title">👔 Admin-näkymä</div>
+      <div class="header-sub" id="header-user"></div>
+    </div>
+    <button class="logout-btn" onclick="kirjauduUlos()">Kirjaudu ulos</button>
+  </div>
+  <div class="app-body">
+    <div class="controls">
+      <select class="month-select" id="month-select" onchange="lataaData()"></select>
+      <button class="btn-export" onclick="vieCSV()">⬇ Vie CSV</button>
+    </div>
+
+    <div class="summary-cards" id="summary-cards"></div>
+
+    <div class="section-title">Tunnit työntekijöittäin</div>
+    <div id="employee-tables"><div class="loading">Ladataan...</div></div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://bscpwalprxunsslppoun.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_YOnrHIKrdJCYzWrZ4luddg_3Aqo4qQr';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let kaikkirjaukset = [];
+
+  // Täytä kuukausivalikko
+  function taytaKuukausivalikko() {
+    var sel = document.getElementById('month-select');
+    var nyt = new Date();
+    var kuukaudet = ['Tammikuu','Helmikuu','Maaliskuu','Huhtikuu','Toukokuu','Kesäkuu','Heinäkuu','Elokuu','Syyskuu','Lokakuu','Marraskuu','Joulukuu'];
+    for(var i = 0; i < 6; i++) {
+      var d = new Date(nyt.getFullYear(), nyt.getMonth() - i, 1);
+      var val = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      var label = kuukaudet[d.getMonth()]+' '+d.getFullYear();
+      var opt = document.createElement('option');
+      opt.value = val; opt.textContent = label;
+      sel.appendChild(opt);
+    }
+  }
+
+  function msToTunnit(ms) {
+    var min = Math.floor(ms / 60000);
+    var h = Math.floor(min / 60);
+    var m = min % 60;
+    return h+'t '+String(m).padStart(2,'0')+'min';
+  }
+
+  function laskeAika(kirjaukset) {
+    var ms = 0;
+    var sisaan = null;
+    var jarj = kirjaukset.slice().sort(function(a,b){ return new Date(a.aika)-new Date(b.aika); });
+    for(var i=0; i<jarj.length; i++) {
+      if(jarj[i].tyyppi==='in') { sisaan = new Date(jarj[i].aika); }
+      else if(jarj[i].tyyppi==='out' && sisaan) { ms += new Date(jarj[i].aika)-sisaan; sisaan=null; }
+    }
+    return ms;
+  }
+
+  async function kirjauduSisaan() {
+    var errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+    var email = document.getElementById('login-email').value;
+    var password = document.getElementById('login-password').value;
+    if(!email||!password){ errEl.textContent='Täytä kaikki kentät'; errEl.style.display='block'; return; }
+    var { error } = await sb.auth.signInWithPassword({ email, password });
+    if(error){ errEl.textContent='Virhe: '+error.message; errEl.style.display='block'; }
+  }
+
+  async function kirjauduUlos() { await sb.auth.signOut(); }
+
+  async function lataaData() {
+    document.getElementById('employee-tables').innerHTML = '<div class="loading">Ladataan...</div>';
+    document.getElementById('summary-cards').innerHTML = '';
+    var val = document.getElementById('month-select').value;
+    var vuosi = parseInt(val.split('-')[0]);
+    var kk = parseInt(val.split('-')[1]);
+    var alku = new Date(vuosi, kk-1, 1).toISOString();
+    var loppu = new Date(vuosi, kk, 1).toISOString();
+
+    var { data, error } = await sb.from('kirjaukset').select('*')
+      .gte('aika', alku).lt('aika', loppu).order('aika', {ascending: true});
+
+    if(error){ document.getElementById('employee-tables').innerHTML = '<div class="loading">Virhe: '+error.message+'</div>'; return; }
+    kaikkirjaukset = data || [];
+    renderData(kaikkirjaukset, vuosi, kk);
+  }
+
+  function renderData(data, vuosi, kk) {
+    // Ryhmittele työntekijöittäin
+    var tyontekijat = {};
+    data.forEach(function(k) {
+      if(!tyontekijat[k.email]) tyontekijat[k.email] = { nimi: k.nimi, email: k.email, kirjaukset: [] };
+      tyontekijat[k.email].kirjaukset.push(k);
+    });
+
+    // Yhteenveto-kortit
+    var emails = Object.keys(tyontekijat);
+    var yhteensaMs = 0;
+    emails.forEach(function(e){ yhteensaMs += laskeAika(tyontekijat[e].kirjaukset); });
+    var paiviaKk = new Date(vuosi, kk, 0).getDate();
+
+    document.getElementById('summary-cards').innerHTML =
+      '<div class="summary-card"><div class="summary-label">Työntekijät</div><div class="summary-value">'+emails.length+'</div><div class="summary-sub">henkilöä</div></div>'+
+      '<div class="summary-card"><div class="summary-label">Tunnit yhteensä</div><div class="summary-value">'+msToTunnit(yhteensaMs)+'</div><div class="summary-sub">kaikki yhteensä</div></div>'+
+      '<div class="summary-card"><div class="summary-label">Kirjaukset</div><div class="summary-value">'+data.length+'</div><div class="summary-sub">kpl kuukaudessa</div></div>';
+
+    if(emails.length === 0) {
+      document.getElementById('employee-tables').innerHTML = '<div class="loading">Ei kirjauksia valitulle kuukaudelle</div>';
+      return;
+    }
+
+    // Taulukot per työntekijä
+    var html = '';
+    emails.forEach(function(email) {
+      var ty = tyontekijat[email];
+      var kokoMs = laskeAika(ty.kirjaukset);
+
+      // Ryhmittele päivittäin
+      var paivat = {};
+      ty.kirjaukset.forEach(function(k) {
+        var pvm = new Date(k.aika).toLocaleDateString('fi-FI');
+        if(!paivat[pvm]) paivat[pvm] = [];
+        paivat[pvm].push(k);
+      });
+
+      html += '<div class="table-card" style="margin-bottom:20px;">';
+      html += '<div class="employee-header"><span>'+ty.nimi+' <span style="font-weight:400;color:#8e8e93;font-size:13px;">'+ty.email+'</span></span><span class="employee-total">Yhteensä: '+msToTunnit(kokoMs)+'</span></div>';
+      html += '<table><thead><tr><th>Päivä</th><th>Töihin</th><th>Kotiin</th><th>Aika töissä</th></tr></thead><tbody>';
+
+      Object.keys(paivat).forEach(function(pvm) {
+        var pk = paivat[pvm];
+        var paivaMs = laskeAika(pk);
+        var sisaanAjat = pk.filter(function(k){ return k.tyyppi==='in'; }).map(function(k){ return new Date(k.aika).toLocaleTimeString('fi-FI',{hour:'2-digit',minute:'2-digit'}); }).join(', ');
+        var ulosAjat = pk.filter(function(k){ return k.tyyppi==='out'; }).map(function(k){ return new Date(k.aika).toLocaleTimeString('fi-FI',{hour:'2-digit',minute:'2-digit'}); }).join(', ');
+        html += '<tr><td>'+pvm+'</td><td>'+sisaanAjat+'</td><td>'+(ulosAjat||'—')+'</td><td class="hours-cell">'+msToTunnit(paivaMs)+'</td></tr>';
+      });
+
+      html += '</tbody></table></div>';
+    });
+
+    document.getElementById('employee-tables').innerHTML = html;
+  }
+
+  function vieCSV() {
+    if(!kaikkirjaukset.length){ alert('Ei dataa vietäväksi'); return; }
+    var rivit = [['Nimi','Sähköposti','Päivä','Aika','Tyyppi']];
+    kaikkirjaukset.forEach(function(k){
+      var aika = new Date(k.aika);
+      rivit.push([k.nimi, k.email, aika.toLocaleDateString('fi-FI'), aika.toLocaleTimeString('fi-FI'), k.tyyppi==='in'?'Töihin':'Kotiin']);
+    });
+    var csv = rivit.map(function(r){ return r.join(';'); }).join('\n');
+    var blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'tyoajat.csv'; a.click();
+  }
+
+  sb.auth.onAuthStateChange(function(event, session) {
+    if(session) {
+      document.getElementById('screen-login').classList.remove('active');
+      document.getElementById('screen-app').classList.add('active');
+      document.getElementById('header-user').textContent = session.user.email;
+      taytaKuukausivalikko();
+      lataaData();
+    } else {
+      document.getElementById('screen-app').classList.remove('active');
+      document.getElementById('screen-login').classList.add('active');
+    }
+  });
+</script>
+</body>
+</html>

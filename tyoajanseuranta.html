@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Työaika">
   <title>Työajanseuranta</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -299,7 +299,8 @@
 <script>
   const SUPABASE_URL = 'https://bscpwalprxunsslppoun.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_YOnrHIKrdJCYzWrZ4luddg_3Aqo4qQr';
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const { createClient } = window.supabase;
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
   let currentUser = null;
   let isTöissä = false;

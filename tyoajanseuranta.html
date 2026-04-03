@@ -439,32 +439,39 @@
     const btn = document.getElementById('main-btn');
     btn.className = 'checkin-btn btn-loading';
     btn.textContent = 'Tallennetaan...';
+    btn.disabled = true;
 
-    const nimi = currentUser.user_metadata?.full_name || currentUser.email;
-    const tyyppi = isTöissä ? 'out' : 'in';
+    try {
+      const nimi = currentUser.user_metadata?.full_name || currentUser.email;
+      const tyyppi = isTöissä ? 'out' : 'in';
 
-    const { error } = await sb.from('kirjaukset').insert({
-      user_id: currentUser.id,
-      nimi: nimi,
-      email: currentUser.email,
-      tyyppi: tyyppi
-    });
+      const { error } = await sb.from('kirjaukset').insert({
+        user_id: currentUser.id,
+        nimi: nimi,
+        email: currentUser.email,
+        tyyppi: tyyppi
+      });
 
-    if(error) {
-      alert('Virhe tallennuksessa: '+error.message);
-    } else {
-      isTöissä = !isTöissä;
-      if(isTöissä) {
-        const nyt = new Date();
-        const h = String(nyt.getHours()).padStart(2,'0');
-        const m = String(nyt.getMinutes()).padStart(2,'0');
-        document.getElementById('since-text').textContent = 'Töissä seit ' + h+':'+m;
+      if(error) {
+        alert('Virhe tallennuksessa: '+error.message);
       } else {
-        document.getElementById('since-text').textContent = '';
+        isTöissä = !isTöissä;
+        if(isTöissä) {
+          const nyt = new Date();
+          const h = String(nyt.getHours()).padStart(2,'0');
+          const m = String(nyt.getMinutes()).padStart(2,'0');
+          document.getElementById('since-text').textContent = 'Töissä seit ' + h+':'+m;
+        } else {
+          document.getElementById('since-text').textContent = '';
+        }
+        try { await lataaKirjaukset(); } catch(e) {}
       }
-      await lataaKirjaukset();
+    } catch(e) {
+      alert('Virhe: '+e.message);
+    } finally {
+      btn.disabled = false;
+      paivitaNappi();
     }
-    paivitaNappi();
   }
 
   async function lataaKirjaukset() {

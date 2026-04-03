@@ -299,8 +299,7 @@
 <script>
   const SUPABASE_URL = 'https://bscpwalprxunsslppoun.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_YOnrHIKrdJCYzWrZ4luddg_3Aqo4qQr';
-  const { createClient } = window.supabase;
-  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   let currentUser = null;
   let isTöissä = false;
@@ -352,7 +351,7 @@
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     if(!email || !password) { naytaVirhe('Täytä kaikki kentät'); return; }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await sb.auth.signInWithPassword({ email, password });
     if(error) naytaVirhe('Virhe: '+error.message);
   }
 
@@ -363,7 +362,7 @@
     const password = document.getElementById('reg-password').value;
     if(!nimi || !email || !password) { naytaVirhe('Täytä kaikki kentät'); return; }
     if(password.length < 6) { naytaVirhe('Salasanan pitää olla vähintään 6 merkkiä'); return; }
-    const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: nimi } } });
+    const { error } = await sb.auth.signUp({ email, password, options: { data: { full_name: nimi } } });
     if(error) naytaVirhe('Virhe: '+error.message);
     else { naytaVirhe('Tili luotu! Voit kirjautua sisään.'); naytaKirjautuminen(); }
   }
@@ -372,13 +371,13 @@
     piilotaVirhe();
     const email = document.getElementById('reset-email').value;
     if(!email) { naytaVirhe('Syötä sähköpostiosoite'); return; }
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await sb.auth.resetPasswordForEmail(email);
     if(error) naytaVirhe('Virhe: '+error.message);
     else naytaVirhe('Nollauslinkki lähetetty sähköpostiisi!');
   }
 
   async function kirjauduUlos() {
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
   }
 
   // --- App logiikka ---
@@ -444,7 +443,7 @@
     const nimi = currentUser.user_metadata?.full_name || currentUser.email;
     const tyyppi = isTöissä ? 'out' : 'in';
 
-    const { error } = await supabase.from('kirjaukset').insert({
+    const { error } = await sb.from('kirjaukset').insert({
       user_id: currentUser.id,
       nimi: nimi,
       email: currentUser.email,
@@ -495,7 +494,7 @@
   }
 
   // --- Auth tila ---
-  supabase.auth.onAuthStateChange(function(event, session) {
+  sb.auth.onAuthStateChange(function(event, session) {
     if(session) {
       naytaSovellus(session.user);
     } else {

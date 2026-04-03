@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Ohjataan...</title>
+  <script>
+    var hash = window.location.hash;
+    var search = window.location.search;
+    var base = 'https://jarmopalonen.github.io/tyoajanseuranta/tyoajanseuranta.html';
+    if(hash) {
+      window.location.replace(base + hash);
+    } else if(search) {
+      window.location.replace(base + search);
+    } else {
+      window.location.replace(base);
+    }
+  </script>
+</head>
+<body>Ohjataan sovellukseen...</body>
+</html>
